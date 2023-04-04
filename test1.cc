@@ -45,8 +45,6 @@ int monitorTime;                          // Time interval for the monitor threa
 mutex mtx;                                 // Mutex for protecting shared data
 high_resolution_clock::time_point start_time; // Start time of the program
 
-
-
 // Function to try acquiring resources for a task
 bool try_acquire(Task& task) {
     unique_lock<mutex> lock(mtx);          // Lock the mutex
@@ -250,6 +248,33 @@ int main(int argc, char* argv[]) {
     // Cancel and join the monitor thread
     pthread_cancel(monitor_tid);
     pthread_join(monitor_tid, NULL);
+
+    // Print information on resource types
+    cout << "System Resources:" << endl;
+    for (const auto& res : resources) {
+        cout << res.first << ": (maxAvail= " << res.second.max_avail << ", held= " << res.second.held << ")" << endl;
+    }
+    cout << endl;
+
+    // Print information on tasks
+    cout << "System Tasks:" << endl;
+    for (size_t i = 0; i < tasks.size(); ++i) {
+        const Task& task = tasks[i];
+
+        // Convert thread ID to hexadecimal string
+        stringstream hex_tid;
+        hex_tid << std::hex << task.tid;
+
+        cout << "[" << i << "] " << task.name << " (IDLE, runTime= " << task.busyTime << " msec, idleTime= " << task.idleTime << " msec):" << endl;
+        cout << "       (tid= 0x" << hex_tid.str() << ")" << endl;
+
+        for (const auto& res : task.resources_needed) {
+            cout << "       " << res.first << ": (needed= " << res.second << ", held= 0)" << endl;
+        }
+
+        cout  << "       " << "(RUN: " << task.iteration << " times, WAIT: " << task.wait_time << " msec)" << endl;
+        cout << endl;
+    }
 
     // Calculate and print total running time
     int total_time = duration_cast<milliseconds>(high_resolution_clock::now() - start_time).count();
