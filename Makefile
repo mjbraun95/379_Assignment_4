@@ -13,5 +13,8 @@ $(TARFILE): a4w23
 a4w23: a4w23.cc
 	$(CC) -o a4w23 a4w23.cc
 
+test1: test1.cc
+	$(CC) -o test1 test1.cc
+
 clean:
 	rm -f a4w23 *.tar.gz

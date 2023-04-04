@@ -38,3 +38,7 @@ _
 ## Acknowledgments
 <!-- TODO: Edit below -->
 This project was built off of the _ file(s) available on eClass, and also appended with various snippets of code from my 3rd assignment submission.  
+
+// so there has to be a mechanism where when one program is asking for a lock another program can't gain the lock in that moment 
+// that's called an atomic operation 
+// https://www.youtube.com/watch?v=NbwbQQB7xNQ
