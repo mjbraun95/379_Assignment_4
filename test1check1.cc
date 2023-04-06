@@ -1,46 +1,48 @@
-#include <chrono>
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <mutex>
-#include <pthread.h>
-#include <sstream>
-#include <string>
-#include <unistd.h>
-#include <vector>
+#include <iostream>//DONE
+#include <fstream>//DONE
+#include <sstream>//DONE
+#include <vector>//DONE
+#include <string>//DONE
+#include <map>//DONE
+#include <mutex>//DONE
+#include <chrono>//DONE
+#include <pthread.h>//DONE
+#include <unistd.h>//DONE
 
-#define NRES_TYPES 10
-#define NTASKS 25
+#define NRES_TYPES 10//DONE
+#define NTASKS 25//DONE
 
-using namespace std;
-using namespace chrono;
+using namespace std;//DONE
+using namespace chrono;//DONE
 
+// Define ResourceType structure
 struct ResourceType {
-    string resourceName;
-    int maxAvail;
-    int held;
+    string resourceName;          //DONE
+    int maxAvail;         // Maximum available resource units//DONE
+    int held;              // # of resource units currently occupied//DONE
 };
 
-struct Task {
-    string taskName;
-    int busyTime;
-    int idleTime;
-    int iterations_completed;
-    int total_wait_time;
-    map<string, int> resources_needed;
-    pthread_t tid;
-    string state; // (WAIT, RUN, IDLE)
+// Define Task structure
+// TODO: Redo
+struct Task {//DONE
+    string taskName;                           //DONE
+    int busyTime;                         //DONE
+    int idleTime;                         //DONE
+    int iteration;                          // Current iteration of the task
+    int waitTime;                          // Time spent waiting for resources
+    map<string, int> resources_needed;      // Map of resources required by the task
+    pthread_t tid;                          // Task thread ID
+    string state;                           // Task state (WAIT, RUN, IDLE)
 };
 
 // Global vars
 // TODO: Redo
-map<string, ResourceType> global_resources_map;
-vector<Task> global_task_vector;
-int NITER;
-string inputFile;
-int monitorTime;
-mutex mtx;
-high_resolution_clock::time_point start_time;
+map<string, ResourceType> resources;       // Vector to store ResourceType objects
+vector<Task> tasks;                        // Vector to store Task objects
+int NITER;                                 // # of iterations per task//DONE
+int monitorTime;                          // Time interval for the monitor thread//DONE
+mutex mtx;                                 // Mutex for protecting shared data
+high_resolution_clock::time_point start_time; // Start time of the program
 
 // TODO: Redo
 // Attempts to acquire a resource
@@ -51,7 +53,7 @@ bool resource_acquired(Task& task) {
 
     // Check if the resources needed are available
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
+        ResourceType& resource = resources[res.first];
         if (resource.held + res.second > resource.maxAvail) {
             return false;
         }
@@ -59,7 +61,7 @@ bool resource_acquired(Task& task) {
 
     // Acquire the resources needed
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
+        ResourceType& resource = resources[res.first];
         resource.held += res.second;
     }
 
@@ -67,13 +69,13 @@ bool resource_acquired(Task& task) {
 }
 
 // TODO: Redo
-// Function to release_resource resources held by a task
-void release_resource(Task& task) {
+// Function to release resources held by a task
+void release(Task& task) {
     unique_lock<mutex> lock(mtx);          // Lock the mutex
 
     // Release resources held by the task
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
+        ResourceType& resource = resources[res.first];
         resource.held -= res.second;
     }
 }
@@ -94,8 +96,8 @@ void* task_thread(void* arg) {
             usleep(10000);
         }
 
-        // Update total_wait_time of the task
-        task.total_wait_time += duration_cast<milliseconds>(high_resolution_clock::now() - wait_start).count();
+        // Update waitTime of the task
+        task.waitTime += duration_cast<milliseconds>(high_resolution_clock::now() - wait_start).count();
 
         // Set task state to "RUN"
         {
@@ -109,19 +111,19 @@ void* task_thread(void* arg) {
         // Increment task iteration, print task info, and set task state to "IDLE"
         {
             unique_lock<mutex> lock(mtx);
-            task.iterations_completed++;
+            task.iteration++;
             int time_elapsed = duration_cast<milliseconds>(high_resolution_clock::now() - start_time).count();
 
             // Convert thread ID to hexadecimal string
             stringstream hex_tid;
             hex_tid << std::hex << task.tid;
 
-            cout << "task: " << task.taskName << " (tid= 0x" << hex_tid.str() << ", iter= " << task.iterations_completed << ", time= " << time_elapsed << " msec)" << endl;
+            cout << "task: " << task.taskName << " (tid= 0x" << hex_tid.str() << ", iter= " << task.iteration << ", time= " << time_elapsed << " msec)" << endl;
             task.state = "IDLE";
         }
 
         // Release resources held by the task
-        release_resource(task);
+        release(task);
 
         // Simulate task's idle time
         usleep(task.idleTime * 1000);
@@ -133,15 +135,15 @@ void* task_thread(void* arg) {
 // TODO: Redo
 // Function executed by monitor thread
 void* monitor_thread(void* arg) {
-    while (true) {
+    while (true) {//DONE
         // Sleep for the monitorTime interval
-        usleep(monitorTime * 1000);
+        usleep(monitorTime * 1000);//DONE
         unique_lock<mutex> lock(mtx);
 
         // Check if all tasks have completed their iterations
         bool all_done = true;
-        for (const Task& task : global_task_vector) {
-            if (task.iterations_completed < NITER) {
+        for (const Task& task : tasks) {
+            if (task.iteration < NITER) {
                 all_done = false;
                 break;
             }
@@ -156,7 +158,7 @@ void* monitor_thread(void* arg) {
         cout << "monitor: ";
         for (const string& state : {"WAIT", "RUN", "IDLE"}) {
             cout << "[" << state << "] ";
-            for (const Task& task : global_task_vector) {
+            for (const Task& task : tasks) {
                 if (task.state == state) {
                     cout << task.taskName << " ";
                 }
@@ -171,16 +173,15 @@ void* monitor_thread(void* arg) {
 
 // TODO: Redo
 // Main function
-int main(int argc, char* argv[]) {
-    // Check args
-    if (argc != 4) {
-        cerr << "Usage: " << argv[0] << " inputFile monitorTime NITER" << endl;
-        return 1;
-    }
-    inputFile = argv[1];
-    monitorTime = stoi(argv[2]);
-    NITER = stoi(argv[3]);
-
+int main(int argc, char* argv[]) {//DONE
+    // Check args//DONE
+    if (argc != 4) {//DONE
+        cerr << "Usage: " << argv[0] << " inputFile monitorTime NITER" << endl;//DONE
+        return 1;//DONE
+    }//DONE
+    string inputFile = argv[1];//DONE
+    monitorTime = stoi(argv[2]);//DONE
+    NITER = stoi(argv[3]);//DONE
 
     // Open input file
     ifstream fin(inputFile);
@@ -192,7 +193,7 @@ int main(int argc, char* argv[]) {
     // Read input file and create tasks and resources
     string line;
     while (getline(fin, line)) {
-        if (line[0] == '\n' || line[0] == '#') {
+        if (line.empty() || line[0] == '#') {
             continue;
         }
 
@@ -211,7 +212,7 @@ int main(int argc, char* argv[]) {
                 resource.resourceName = name;
                 resource.maxAvail = value;
                 resource.held = 0;
-                global_resources_map[name] = resource;
+                resources[name] = resource;
             }
         } else if (keyword == "task") {
             Task task;
@@ -226,10 +227,10 @@ int main(int argc, char* argv[]) {
                 task.resources_needed[name] = value;
             }
 
-            task.iterations_completed = 0;
+            task.iteration = 0;
             task.state = "WAIT";
-            task.total_wait_time = 0;
-            global_task_vector.push_back(task);
+            task.waitTime = 0;
+            tasks.push_back(task);
         }
     }
     // Close input file
@@ -243,12 +244,12 @@ int main(int argc, char* argv[]) {
     pthread_create(&monitor_tid, NULL, monitor_thread, NULL);
 
     // Create and start task threads
-    for (Task& task : global_task_vector) {
+    for (Task& task : tasks) {
         pthread_create(&task.tid, NULL, task_thread, &task);
     }
 
     // Wait for all task threads to finish
-    for (Task& task : global_task_vector) {
+    for (Task& task : tasks) {
         pthread_join(task.tid, NULL);
     }
 
@@ -258,15 +259,15 @@ int main(int argc, char* argv[]) {
 
     // Print information on resource types
     cout << "System Resources:" << endl;
-    for (const auto& res : global_resources_map) {
+    for (const auto& res : resources) {
         cout << res.first << ": (maxAvail= " << res.second.maxAvail << ", held= " << res.second.held << ")" << endl;
     }
     cout << endl;
 
     // Print information on tasks
     cout << "System Tasks:" << endl;
-    for (size_t i = 0; i < global_task_vector.size(); ++i) {
-        const Task& task = global_task_vector[i];
+    for (size_t i = 0; i < tasks.size(); ++i) {
+        const Task& task = tasks[i];
 
         // Convert thread ID to hexadecimal string
         stringstream hex_tid;
@@ -279,7 +280,7 @@ int main(int argc, char* argv[]) {
             cout << "       " << res.first << ": (needed= " << res.second << ", held= 0)" << endl;
         }
 
-        cout  << "       " << "(RUN: " << task.iterations_completed << " times, WAIT: " << task.total_wait_time << " msec)" << endl;
+        cout  << "       " << "(RUN: " << task.iteration << " times, WAIT: " << task.waitTime << " msec)" << endl;
         cout << endl;
     }
 

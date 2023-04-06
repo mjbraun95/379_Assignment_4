@@ -34,7 +34,7 @@ class Task {
                                  // resource type needed for the task to execute
     void myFunction();
     Task(int task, const char* taskName, int busyTime, 
-         int idleTime, const std::map<std::string, int>& name_value)
+         int idleTime, const map<string, int>& name_value)
         : task(task), busyTime(busyTime), idleTime(idleTime), name_value(name_value)
     {
         // Copy the task name to the member variable

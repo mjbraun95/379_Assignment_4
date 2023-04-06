@@ -17,5 +17,8 @@ a4w23: a4w23.cc
 test1: test1.cc
 	$(CC) -o test1 test1.cc
 
+freerange: freerange.cc
+	$(CC) -o freerange freerange.cc
+
 clean:
 	rm -f a4w23 *.tar.gz
