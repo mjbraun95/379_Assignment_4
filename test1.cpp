@@ -15,16 +15,16 @@
 using namespace std;
 using namespace chrono;
 
-struct ResourceType {
-    string resourceName;
-    int maxAvail;
+struct Resource {
+    string resouce_name;
+    int max_available;
     int held;
 };
 
 struct Task {
-    string taskName;
-    int busyTime;
-    int idleTime;
+    string task_name;
+    int busy_time;
+    int idle_time;
     int iterations_completed;
     int total_wait_time;
     map<string, int> resources_needed;
@@ -34,11 +34,11 @@ struct Task {
 
 // Global vars
 // TODO: Redo
-map<string, ResourceType> global_resources_map;
+map<string, Resource> global_resources_map;
 vector<Task> global_task_vector;
 int NITER;
-string inputFile;
-int monitorTime;
+string input_file;
+int monitor_time;
 mutex mtx;
 high_resolution_clock::time_point start_time;
 
@@ -51,15 +51,15 @@ bool resource_acquired(Task& task) {
 
     // Check if the resources needed are available
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
-        if (resource.held + res.second > resource.maxAvail) {
+        Resource& resource = global_resources_map[res.first];
+        if (resource.held + res.second > resource.max_available) {
             return false;
         }
     }
 
     // Acquire the resources needed
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
+        Resource& resource = global_resources_map[res.first];
         resource.held += res.second;
     }
 
@@ -73,7 +73,7 @@ void release_resource(Task& task) {
 
     // Release resources held by the task
     for (auto& res : task.resources_needed) {
-        ResourceType& resource = global_resources_map[res.first];
+        Resource& resource = global_resources_map[res.first];
         resource.held -= res.second;
     }
 }
@@ -104,7 +104,7 @@ void* task_thread(void* arg) {
         }
 
         // Simulate task's busy time
-        usleep(task.busyTime * 1000);
+        usleep(task.busy_time * 1000);
 
         // Increment task iteration, print task info, and set task state to "IDLE"
         {
@@ -116,7 +116,7 @@ void* task_thread(void* arg) {
             stringstream hex_tid;
             hex_tid << std::hex << task.tid;
 
-            cout << "task: " << task.taskName << " (tid= 0x" << hex_tid.str() << ", iter= " << task.iterations_completed << ", time= " << time_elapsed << " msec)" << endl;
+            cout << "task: " << task.task_name << " (tid= 0x" << hex_tid.str() << ", iter= " << task.iterations_completed << ", time= " << time_elapsed << " msec)" << endl;
             task.state = "IDLE";
         }
 
@@ -124,7 +124,7 @@ void* task_thread(void* arg) {
         release_resource(task);
 
         // Simulate task's idle time
-        usleep(task.idleTime * 1000);
+        usleep(task.idle_time * 1000);
     }
 
     return NULL;
@@ -134,8 +134,8 @@ void* task_thread(void* arg) {
 // Function executed by monitor thread
 void* monitor_thread(void* arg) {
     while (true) {
-        // Sleep for the monitorTime interval
-        usleep(monitorTime * 1000);
+        // Sleep for the monitor_time interval
+        usleep(monitor_time * 1000);
         unique_lock<mutex> lock(mtx);
 
         // Check if all tasks have completed their iterations
@@ -158,7 +158,7 @@ void* monitor_thread(void* arg) {
             cout << "[" << state << "] ";
             for (const Task& task : global_task_vector) {
                 if (task.state == state) {
-                    cout << task.taskName << " ";
+                    cout << task.task_name << " ";
                 }
             }
             cout << endl << "         ";
@@ -174,18 +174,18 @@ void* monitor_thread(void* arg) {
 int main(int argc, char* argv[]) {
     // Check args
     if (argc != 4) {
-        cerr << "Usage: " << argv[0] << " inputFile monitorTime NITER" << endl;
+        cerr << "Usage: " << argv[0] << " input_file monitor_time NITER" << endl;
         return 1;
     }
-    inputFile = argv[1];
-    monitorTime = stoi(argv[2]);
+    input_file = argv[1];
+    monitor_time = stoi(argv[2]);
     NITER = stoi(argv[3]);
 
 
     // Open input file
-    ifstream fin(inputFile);
+    ifstream fin(input_file);
     if (!fin) {
-        cerr << "Error opening input file: " << inputFile << endl;
+        cerr << "Error opening input file: " << input_file << endl;
         return 1;
     }
 
@@ -207,15 +207,15 @@ int main(int argc, char* argv[]) {
                 string name = resource_str.substr(0, pos);
                 int value = stoi(resource_str.substr(pos + 1));
 
-                ResourceType resource;
-                resource.resourceName = name;
-                resource.maxAvail = value;
+                Resource resource;
+                resource.resouce_name = name;
+                resource.max_available = value;
                 resource.held = 0;
                 global_resources_map[name] = resource;
             }
         } else if (keyword == "task") {
             Task task;
-            ss >> task.taskName >> task.busyTime >> task.idleTime;
+            ss >> task.task_name >> task.busy_time >> task.idle_time;
 
             string resource_str;
             while (ss >> resource_str) {
@@ -259,7 +259,7 @@ int main(int argc, char* argv[]) {
     // Print information on resource types
     cout << "System Resources:" << endl;
     for (const auto& res : global_resources_map) {
-        cout << res.first << ": (maxAvail= " << res.second.maxAvail << ", held= " << res.second.held << ")" << endl;
+        cout << res.first << ": (max_available= " << res.second.max_available << ", held= " << res.second.held << ")" << endl;
     }
     cout << endl;
 
@@ -272,7 +272,7 @@ int main(int argc, char* argv[]) {
         stringstream hex_tid;
         hex_tid << std::hex << task.tid;
 
-        cout << "[" << i << "] " << task.taskName << " (IDLE, runTime= " << task.busyTime << " msec, idleTime= " << task.idleTime << " msec):" << endl;
+        cout << "[" << i << "] " << task.task_name << " (IDLE, runTime= " << task.busy_time << " msec, idle_time= " << task.idle_time << " msec):" << endl;
         cout << "       (tid= 0x" << hex_tid.str() << ")" << endl;
 
         for (const auto& res : task.resources_needed) {

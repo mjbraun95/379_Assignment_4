@@ -211,6 +211,9 @@ int main(int argc, char *argv[]) {
 
     load_input_file(input_file);
 
+    // Record the start time of the program
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     pthread_t monitor_tid;
     pthread_create(&monitor_tid, nullptr, monitor_thread, nullptr);
 
