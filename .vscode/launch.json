@@ -5,8 +5,8 @@
             "name": "Debug C++ Program",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/freerange",
-            "args": ["input_file1.txt", "10000", "3"],
+            "program": "${workspaceFolder}/a4w23",
+            "args": ["input_file1.txt", "1000", "3"],
             "cwd": "${workspaceFolder}",
         }
     ]
